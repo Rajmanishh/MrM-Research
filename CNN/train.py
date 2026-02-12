@@ -35,7 +35,7 @@ def load_data(batch_size=256):
         transform=transform
     )
 
-    # ⭐ Split into Train / Validation
+    # Split into Train / Validation
     train_size = int(0.85 * len(full_train_dataset))
     val_size = len(full_train_dataset) - train_size
 
