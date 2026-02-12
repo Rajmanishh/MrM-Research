@@ -74,7 +74,6 @@ class CNN(nn.Module):
         self.layer4 = ResidualBlock(64, 128, stride=2)  # 14 → 7
         self.layer5 = ResidualBlock(128, 128)
 
-        # ⭐ Final BN before classifier (VERY GOOD PRACTICE)
         self.final_bn = nn.BatchNorm2d(128)
 
         # Global pooling
