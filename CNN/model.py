@@ -29,7 +29,6 @@ class ResidualBlock(nn.Module):
             bias=False
         )
 
-        # Projection shortcut if dimensions change
         if stride != 1 or in_channels != out_channels:
             self.shortcut = nn.Conv2d(
                 in_channels,
@@ -42,14 +41,12 @@ class ResidualBlock(nn.Module):
             self.shortcut = nn.Identity()
 
     def forward(self, x):
-
         identity = self.shortcut(x)
 
         out = self.conv1(self.relu(self.bn1(x)))
         out = self.conv2(self.relu(self.bn2(out)))
 
         out += identity
-
         return out
 
 
@@ -58,29 +55,33 @@ class CNN(nn.Module):
     def __init__(self):
         super().__init__()
 
-        # Slightly improved stem
+        # Stem
         self.stem = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(32),
             nn.ReLU(inplace=True)
         )
 
-        # Residual stages
+        # ⭐ 4 residual layers
         self.layer1 = ResidualBlock(32, 32)
-
         self.layer2 = ResidualBlock(32, 64, stride=2)   # 28 → 14
         self.layer3 = ResidualBlock(64, 64)
-
         self.layer4 = ResidualBlock(64, 128, stride=2)  # 14 → 7
-        self.layer5 = ResidualBlock(128, 128)
 
         self.final_bn = nn.BatchNorm2d(128)
+
+        # Spatial dropout
+        self.dropout_spatial = nn.Dropout2d(p=0.25)
 
         # Global pooling
         self.gap = nn.AdaptiveAvgPool2d(1)
 
-        # Classifier
-        self.fc = nn.Linear(128, 10)
+        # Classifier dropout
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Dropout(p=0.5),
+            nn.Linear(128, 10)
+        )
 
     def forward(self, x):
 
@@ -90,13 +91,13 @@ class CNN(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        x = self.layer5(x)
 
-        # Pre-activation style often benefits from this
         x = self.final_bn(x)
         x = nn.functional.relu(x, inplace=True)
 
-        x = self.gap(x)
-        x = torch.flatten(x, 1)
+        x = self.dropout_spatial(x)
 
-        return self.fc(x)
+        x = self.gap(x)
+        x = self.classifier(x)
+
+        return x
